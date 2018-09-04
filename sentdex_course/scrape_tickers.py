@@ -9,7 +9,39 @@ import pandas as pd
 import pandas_datareader.data as web
 import sys
 import time
-from alpha_vantage.timeseries import TimeSeries
+import matplotlib.pyplot as plt
+from matplotlib import style
+import matplotlib.dates as mdates
+
+import numpy as np
+
+style.use('ggplot')
+
+def visualize_correlation():
+    df = pd.read_csv('sp500joindata.csv')
+    df['date'] = pd.to_datetime(df['date'])
+    df.set_index('date')
+
+    df_corr = df.corr()
+
+    data = df_corr.values
+    fig, ax = plt.subplots()
+    heatmap = ax.pcolor(data, cmap=plt.cm.RdYlGn)
+    fig.colorbar(heatmap)
+    ax.set_xticks(np.arange(data.shape[0])+0.5, minor=False)
+    ax.set_yticks(np.arange(data.shape[1])+0.5, minor=False)
+    ax.invert_yaxis()
+    ax.xaxis.tick_top()
+
+    column_labels = df_corr.columns.tolist()
+    row_labels = df_corr.index.tolist()
+
+    ax.set_xticklabels(column_labels)
+    ax.set_yticklabels(row_labels)
+    plt.xticks(rotation=90)
+    heatmap.set_clim(-1,1)
+    plt.tight_layout()
+    plt.show()
 
 def save_sp500_tickers():
     resp = requests.get('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
@@ -25,12 +57,7 @@ def save_sp500_tickers():
     #print(tickers[:5])
     return tickers
 
-len(old)
-len(df)
-len(test)
-test.to_csv('test.csv')
-
-def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end=dt.datetime.today()-dt.timedelta(1)):
+def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end=dt.datetime.today()-dt.timedelta(1), update=True):
     if not os.path.exists('sp500tickers.pickle') and not reload_sp500:
         tickers = save_sp500_tickers()
     elif reload_sp500:
@@ -48,7 +75,7 @@ def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end
             df = web.DataReader(ticker, 'robinhood', start, end)
             df.to_csv('stock_dfs/{}.csv'.format(ticker))
         elif update:
-            df = web.DataReader(ticker, 'robinhood', start, end)
+            df = web.DataReader(ticker, 'robinhood', dt.datetime.today()-dt.timedelta(4), end)
             df.reset_index(inplace=True)
             df['begins_at'] = pd.to_datetime(df['begins_at'])
             #df.index = pd.to_datetime(df.index)
@@ -56,49 +83,11 @@ def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end
             #old.set_index('begins_at', inplace=True)
             old['begins_at'] = pd.to_datetime(old['begins_at'])
             df = pd.concat([old, df])
-            df = test.drop_duplicates(keep='first', subset='begins_at')
-            df.to_csv('stock_dfs/{}.csv'.format(ticker))
+            df = df.drop_duplicates(keep='first', subset='begins_at')
+            df.to_csv('stock_dfs/{}.csv'.format(ticker), index=False)
         else:
             print('Already have {}'.format(ticker))
 
-def get_data_from_alpha(reload_sp500=False, outputsize='compact', update=True):
-    if not os.path.exists('sp500tickers.pickle') and not reload_sp500:
-        tickers = save_sp500_tickers()
-    elif reload_sp500:
-        tickers = save_sp500_tickers()
-    else:
-        with open("sp500tickers.pickle",'rb') as f:
-            tickers = pickle.load(f)
-
-    if not os.path.exists('stock_dfs'):
-        os.makedirs('stock_dfs')
-
-    ts = TimeSeries(key="GVR4ZPBY2FUX530Z",output_format='pandas')
-
-    for ticker in tickers:
-        print(ticker)
-        if not os.path.exists('stock_dfs/{}.csv'.format(ticker)):
-            df, meta_data = ts.get_daily_adjusted(ticker, outputsize=outputsize)
-            col_heads = {'6. volume':'volume', '8. split coefficient':'split_coef', '7. dividend amount':'divedend', '5. adjusted close':'adj_close', '1. open':'open', '2. high':'high', '4. close':'close',  '3. low':'low'}
-            df.columns = df.columns.map(col_heads)
-            df.index = pd.to_datetime(df.index)
-            df.to_csv('stock_dfs/{}.csv'.format(ticker))
-        elif update:
-            df, meta_data = ts.get_daily_adjusted(ticker, outputsize=outputsize)
-            col_heads = {'6. volume':'volume', '8. split coefficient':'split_coef', '7. dividend amount':'divedend', '5. adjusted close':'adj_close', '1. open':'open', '2. high':'high', '4. close':'close',  '3. low':'low'}
-            df.columns = df.columns.map(col_heads)
-            df.index = pd.to_datetime(df.index)
-            old = pd.read_csv('stock_dfs/{}.csv'.format(ticker), parse_dates=True)
-            old.set_index('date', inplace=True)
-            df = pd.concat([old,df]).drop_duplicates()
-            df.to_csv('stock_dfs/{}.csv'.format(ticker))
-        else:
-            print('Already have {} up to date'.format(ticker))
-
-        time.sleep(60)
-
-def get_data_quandl(reload_sp500=False, start=dt.datetime(2010,1,1), end=dt.datetime.today()-dt.timedelta(1), api_key = None):
-    pass
 
 def compile_close_data():
     with open('sp500tickers.pickle', "rb") as f:
@@ -108,11 +97,24 @@ def compile_close_data():
 
     for count, ticker in enumerate(tickers):
         df = pd.read_csv('stock_dfs/{}.csv'.format(ticker))
-        df.set_index('Date', inplace=True)
 
-        df.rename(columns = {})
+        df.rename(columns = {'begins_at':'date', 'close_price':ticker, 'high_price':'high', 'low_price':'low', 'open_price': 'open'}, inplace=True)
+        df.set_index('date', inplace=True)
+        df.drop(['open', 'high', 'low', 'symbol','interpolated', 'volume', 'session'], 1, inplace=True)
+
+        if main_df.empty:
+            main_df = df
+        else:
+            main_df = main_df.join(df, how='outer')
+
+        if count % 10 == 0:
+            print(count)
+
+    print(main_df.tail())
+    main_df.to_csv('sp500joindata.csv')
 
 if __name__=='__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    get_data_from_robinhood(start=dt.datetime.today()-dt.timedelta(4),update=True)
+    get_data_from_robinhood()
+    compile_close_data()
