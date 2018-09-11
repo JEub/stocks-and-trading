@@ -7,5 +7,5 @@ dist/
 build/
 
 *APIKey.png
-stockdfs/
+stock_dfs/
 *.csv

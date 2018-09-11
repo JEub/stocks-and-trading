@@ -75,7 +75,7 @@ def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end
             df = web.DataReader(ticker, 'robinhood', start, end)
             df.to_csv('stock_dfs/{}.csv'.format(ticker))
         elif update:
-            df = web.DataReader(ticker, 'robinhood', dt.datetime.today()-dt.timedelta(4), end)
+            df = web.DataReader(ticker, 'robinhood', dt.datetime.today()-dt.timedelta(7), end)
             df.reset_index(inplace=True)
             df['begins_at'] = pd.to_datetime(df['begins_at'])
             #df.index = pd.to_datetime(df.index)
