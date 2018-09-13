@@ -70,7 +70,7 @@ def do_ml(ticker):
 
     return confidence
 
-do_ml('AAPL')
+do_ml('BAC')
 
 if __name__=='__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
