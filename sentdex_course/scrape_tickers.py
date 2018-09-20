@@ -57,14 +57,20 @@ def save_sp500_tickers():
     #print(tickers[:5])
     return tickers
 
-def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end=dt.datetime.today()-dt.timedelta(1), update=True):
-    if not os.path.exists('sp500tickers.pickle') and not reload_sp500:
-        tickers = save_sp500_tickers()
-    elif reload_sp500:
-        tickers = save_sp500_tickers()
+def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end=dt.datetime.today()-dt.timedelta(1), update=True, ticker=None):
+    if ticker is not None:
+        if isinstance(ticker,str):
+            tickers = [ticker,]
+        else:
+            tickers = ticker
     else:
-        with open("sp500tickers.pickle",'rb') as f:
-            tickers = pickle.load(f)
+        if not os.path.exists('sp500tickers.pickle') and not reload_sp500:
+            tickers = save_sp500_tickers()
+        elif reload_sp500:
+            tickers = save_sp500_tickers()
+        else:
+            with open("sp500tickers.pickle",'rb') as f:
+                tickers = pickle.load(f)
 
     if not os.path.exists('stock_dfs'):
         os.makedirs('stock_dfs')
@@ -75,19 +81,24 @@ def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end
             df = web.DataReader(ticker, 'robinhood', start, end)
             df.to_csv('stock_dfs/{}.csv'.format(ticker))
         elif update:
-            df = web.DataReader(ticker, 'robinhood', dt.datetime.today()-dt.timedelta(7), end)
-            df.reset_index(inplace=True)
-            df['begins_at'] = pd.to_datetime(df['begins_at'])
-            #df.index = pd.to_datetime(df.index)
-            old = pd.read_csv('stock_dfs/{}.csv'.format(ticker))
-            #old.set_index('begins_at', inplace=True)
-            old['begins_at'] = pd.to_datetime(old['begins_at'])
-            df = pd.concat([old, df])
-            df = df.drop_duplicates(keep='first', subset='begins_at')
-            df.to_csv('stock_dfs/{}.csv'.format(ticker), index=False)
+            try:
+                df = web.DataReader(ticker, 'robinhood', dt.datetime.today()-dt.timedelta(7), end)
+                df.reset_index(inplace=True)
+                df['begins_at'] = pd.to_datetime(df['begins_at'])
+                #df.index = pd.to_datetime(df.index)
+                old = pd.read_csv('stock_dfs/{}.csv'.format(ticker))
+                #old.set_index('begins_at', inplace=True)
+                old['begins_at'] = pd.to_datetime(old['begins_at'])
+                df = pd.concat([old, df])
+                df = df.drop_duplicates(keep='first', subset='begins_at')
+                df.to_csv('stock_dfs/{}.csv'.format(ticker), index=False)
+            except KeyError:
+                print('KeyError for {}'.format(ticker))
+                reload_sp500 = True
         else:
             print('Already have {}'.format(ticker))
-
+    if reload_sp500:
+        tickers = save_sp500_tickers()
 
 def compile_close_data():
     with open('sp500tickers.pickle', "rb") as f:
