@@ -78,8 +78,12 @@ def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end
     for ticker in tickers:
         print(ticker)
         if not os.path.exists('stock_dfs/{}.csv'.format(ticker)):
-            df = web.DataReader(ticker, 'robinhood', start, end)
-            df.to_csv('stock_dfs/{}.csv'.format(ticker))
+            try:
+                df = web.DataReader(ticker, 'robinhood', start, end)
+                df.to_csv('stock_dfs/{}.csv'.format(ticker))
+            except KeyError:
+                print("Ticker {} no longer in S&P 500.".format(ticker))
+                reload_sp500 = True
         elif update:
             try:
                 df = web.DataReader(ticker, 'robinhood', dt.datetime.today()-dt.timedelta(7), end)
@@ -118,8 +122,9 @@ def compile_close_data():
         else:
             main_df = main_df.join(df, how='outer')
 
-        if count % 10 == 0:
-            print(count)
+        if count % 5 == 0:
+            sys.stdout.write('\r')
+            sys.stdout.write('{} files processed.'.format(count))
 
     print(main_df.tail())
     main_df.to_csv('sp500joindata.csv')
@@ -127,5 +132,5 @@ def compile_close_data():
 if __name__=='__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    get_data_from_robinhood()
+    #get_data_from_robinhood()
     compile_close_data()
