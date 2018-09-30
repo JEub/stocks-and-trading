@@ -12,6 +12,7 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib import style
 import matplotlib.dates as mdates
+import json
 
 import numpy as np
 
@@ -57,7 +58,7 @@ def save_sp500_tickers():
     #print(tickers[:5])
     return tickers
 
-def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end=dt.datetime.today()-dt.timedelta(1), update=True, ticker=None):
+def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end=dt.datetime.today(), update=True, ticker=None):
     if ticker is not None:
         if isinstance(ticker,str):
             tickers = [ticker,]
@@ -75,6 +76,10 @@ def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end
     if not os.path.exists('stock_dfs'):
         os.makedirs('stock_dfs')
 
+    last_update = retrieve_last_date('date_data.txt')
+    if last_update == end:
+        update=False
+
     for ticker in tickers:
         print(ticker)
         if not os.path.exists('stock_dfs/{}.csv'.format(ticker)):
@@ -86,7 +91,7 @@ def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end
                 reload_sp500 = True
         elif update:
             try:
-                df = web.DataReader(ticker, 'robinhood', dt.datetime.today()-dt.timedelta(7), end)
+                df = web.DataReader(ticker, 'robinhood', last_update, end)
                 df.reset_index(inplace=True)
                 df['begins_at'] = pd.to_datetime(df['begins_at'])
                 #df.index = pd.to_datetime(df.index)
@@ -103,6 +108,29 @@ def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end
             print('Already have {}'.format(ticker))
     if reload_sp500:
         tickers = save_sp500_tickers()
+    save_last_date(last_date = dt.date.today()-dt.timedelta(1))
+
+def save_last_date(last_date=None):
+    data = {}
+    if last_date is not None and isinstance(last_date,(dt.date,dt.datetime)):
+        TODAY = last_date
+    else:
+        TODAY = dt.date.today()
+
+    data['last_check_date'] = {
+        'year': TODAY.year,
+        'month': TODAY.month,
+        'day': TODAY.day
+    }
+
+    with open('date_data.txt','w') as f:
+        json.dump(data,f)
+
+def retrieve_last_date(file, key='last_check_date'):
+    with open(file,'r') as json_file:
+        data = json.load(json_file)
+
+    return dt.date(data[key]['year'],data[key]['month'], data[key]['day'])
 
 def compile_close_data():
     with open('sp500tickers.pickle', "rb") as f:
@@ -132,5 +160,5 @@ def compile_close_data():
 if __name__=='__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    #get_data_from_robinhood()
+    get_data_from_robinhood()
     compile_close_data()
