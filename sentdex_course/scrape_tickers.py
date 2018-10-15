@@ -81,7 +81,8 @@ def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end
         update=False
 
     for ticker in tickers:
-        print(ticker)
+        sys.stdout.write('\r\033[K')
+        sys.stdout.write('Processing {}.'.format(ticker))
         if not os.path.exists('stock_dfs/{}.csv'.format(ticker)):
             try:
                 df = web.DataReader(ticker, 'robinhood', start, end)
@@ -106,8 +107,18 @@ def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end
                 reload_sp500 = True
         else:
             print('Already have {}'.format(ticker))
+
     if reload_sp500:
+        print('Reloading S&P500 Tickers')
         tickers = save_sp500_tickers()
+        for ticker in tickers:
+            if not os.path.exists('stock_dfs/{}.csv'.format(ticker)):
+                try:
+                    df = web.DataReader(ticker, 'robinhood', start, end)
+                    df.to_csv('stock_dfs/{}.csv'.format(ticker))
+                except:
+                    print('{} could not be gathered.'.format(ticker))
+
     save_last_date(last_date = dt.date.today()-dt.timedelta(1))
 
 def save_last_date(last_date=None):
