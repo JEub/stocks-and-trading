@@ -58,6 +58,7 @@ def save_sp500_tickers():
     #print(tickers[:5])
     return tickers
 
+
 def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end=dt.datetime.today(), update=True, ticker=None):
     if ticker is not None:
         if isinstance(ticker,str):
