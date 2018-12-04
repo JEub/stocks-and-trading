@@ -7,6 +7,7 @@ import pickle
 import requests
 import pandas as pd
 import pandas_datareader.data as web
+import pandas_datareader.nasdaq_trader as nasdaq
 import sys
 import time
 import matplotlib.pyplot as plt
@@ -44,6 +45,14 @@ def visualize_correlation():
     plt.tight_layout()
     plt.show()
 
+def get_nasdaq_tickers():
+    tickers = nasdaq.get_nasdaq_symbols()
+
+    with open('all_stock_tickers.pickle','wb') as f:
+        pickle.dump(tickers.index.tolist(),f)
+
+    return tickers.index.tolist()
+
 def save_sp500_tickers():
     resp = requests.get('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
     soup = bs.BeautifulSoup(resp.text, 'lxml')
@@ -53,10 +62,13 @@ def save_sp500_tickers():
         ticker = row.findAll('td')[0].text
         tickers.append(ticker)
 
+    all_tickers = get_nasdaq_symbols()
+    s_and_p = [x for x in tickers if x in all_tickers]
+
     with open("sp500tickers.pickle","wb") as f:
-        pickle.dump(tickers,f)
+        pickle.dump(s_and_p,f)
     #print(tickers[:5])
-    return tickers
+    return all_tickers
 
 
 def get_data_from_robinhood(reload_sp500=False, start=dt.datetime(2010,1,1), end=dt.datetime.today(), update=True, ticker=None):
